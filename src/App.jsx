@@ -3,37 +3,34 @@ import ChatBubble from './components/ChatBubble';
 
 function App() {
   const [messages, setMessages] = useState([
-    { sender: 'bot', message: 'Hi, ask me anything about Jason!' },
+    { sender: 'bot', message: 'Ask me anything. I’m Jason and I have no filter.' },
   ]);
   const [input, setInput] = useState('');
 
   const handleSend = async () => {
     if (!input.trim()) return;
 
-    // Step 1: Add user message to screen
     const userMsg = { sender: 'user', message: input };
     setMessages((prev) => [...prev, userMsg]);
 
-    // Step 2: Simulate GPT reply (real GPT comes later)
-    const replyText = "Jason says: I love ramen and walking my dog KenKen.";
-    const botMsg = { sender: 'bot', message: replyText };
-    setMessages((prev) => [...prev, botMsg]);
-
-    // Step 3: Send replyText to your Flask Resemble API
     try {
-      const res = await fetch('http://localhost:5000/api/speak', {
+      const res = await fetch('https://kitgpt-backend.onrender.com/api/speak', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: replyText }),
+        body: JSON.stringify({ text: input }),
       });
 
       const data = await res.json();
+      const replyText = data.text || "Jason didn’t answer.";
+      const botMsg = { sender: 'bot', message: replyText };
+      setMessages((prev) => [...prev, botMsg]);
+
       if (data.audioUrl) {
         const audio = new Audio(data.audioUrl);
         audio.play();
       }
     } catch (err) {
-      console.error('Failed to get voice:', err);
+      console.error('Error:', err);
     }
 
     setInput('');
@@ -51,7 +48,7 @@ function App() {
           className="flex-1 border rounded-xl px-4 py-2"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask Jason anything..."
+          placeholder="Ask Jason something..."
         />
         <button
           className="ml-2 bg-blue-600 text-white rounded-xl px-4 py-2"
