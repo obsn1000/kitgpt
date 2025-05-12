@@ -1,7 +1,7 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from resemble import Resemble
-import openai
+from openai import OpenAI
 import os
 from dotenv import load_dotenv
 
@@ -9,13 +9,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Init Flask app
-app = Flask(__name__)
+app = Flask(__name__, static_folder='dist')
 CORS(app)
 
 # Set API keys from .env
 Resemble.api_key = os.environ.get("RESEMBLE_API_KEY")
 VOICE_UUID = os.environ.get("RESEMBLE_VOICE_UUID")
-openai.api_key = os.environ.get("OPENAI_API_KEY")
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 @app.route("/api/speak", methods=["POST"])
 def speak():
@@ -27,7 +27,7 @@ def speak():
 
     try:
         # 1. Get GPT reply as Jason
-        gpt_response = openai.ChatCompletion.create(
+        gpt_response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": (
@@ -43,7 +43,7 @@ def speak():
             ]
         )
 
-        reply_text = gpt_response["choices"][0]["message"]["content"]
+        reply_text = gpt_response.choices[0].message.content
 
         # 2. Convert GPT text into Jason's voice
         voice_response = Resemble.v2.clips.create_sync(VOICE_UUID, {
@@ -61,5 +61,14 @@ def speak():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# Serve static files from the React app
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve(path):
+    if path != "" and os.path.exists(app.static_folder + '/' + path):
+        return send_from_directory(app.static_folder, path)
+    else:
+        return send_from_directory(app.static_folder, 'index.html')
+
 if __name__ == "__main__":
-    app.run(port=5000)
+    app.run(port=5000, debug=True)
